@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>City of Naples Fire Rescue – DCHART Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding:1em; background:#fff; color:#000; }
+    header { text-align:center; margin-bottom:1em; }
+    header img { max-width:120px; }
+    h2 { color:#c00; margin:0.5em 0; }
+    .section { background:#f9f9f9; padding:1em; border:1px solid #ddd; margin-bottom:1em; border-radius:6px; }
+    label { font-weight:bold; display:block; margin-top:0.5em; }
+    input, textarea, select { width:100%; padding:0.5em; margin-top:0.2em; border:1px solid #ccc; border-radius:4px; }
+    button { width:100%; padding:12px; background:#c00; color:#fff; border:none; border-radius:5px; font-size:1.1em; margin-top:1em; }
+    #output { margin-top:1em; white-space:pre-wrap; background:#eef; padding:1em; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>City of Naples Fire Rescue</h2>
+    <h3>DCHART PCR Generator</h3>
+  </header>
+
+  <div class="section"><h3>D – Dispatch</h3>
+    <label>Unit<input id="unit"></label>
+    <label>Call Type<input id="callType"></label>
+    <label>Age / Gender<input id="ageGender"></label>
+    <label>Upon Arrival<textarea id="arrivalInfo"></textarea></label>
+  </div>
+
+  <div class="section"><h3>C – Chief Complaint</h3>
+    <label><textarea id="complaint" placeholder="No Voiced Complaints"></textarea></label>
+  </div>
+
+  <div class="section"><h3>H – History</h3>
+    <label>Signs/Symptoms<textarea id="s_signs"></textarea></label>
+    <label>Allergies<textarea id="s_allergies" placeholder="NKDA"></textarea></label>
+    <label>Medications<textarea id="s_meds"></textarea></label>
+    <label>Pertinent History<textarea id="s_history"></textarea></label>
+    <label>Last Oral Intake<textarea id="s_intake"></textarea></label>
+    <label>Events Leading Up<textarea id="s_events"></textarea></label>
+    <label>Onset<input id="opqrst_onset"></label>
+    <label>Provocation<input id="opqrst_prov"></label>
+    <label>Quality<input id="opqrst_qual"></label>
+    <label>Radiation<input id="opqrst_rad"></label>
+    <label>Severity<input id="opqrst_sev"></label>
+    <label>Time<textarea id="opqrst_time"></textarea></label>
+    <label>Recent Trauma<textarea id="recent_trauma"></textarea></label>
+    <label>Recent Travel<textarea id="recent_travel"></textarea></label>
+    <label>Witness/Caregiver Info<textarea id="other_history"></textarea></label>
+  </div>
+
+  <div class="section"><h3>A – Assessment</h3>
+    <label>AAO Level<input id="ass_aao"></label>
+    <label>GCS<input id="ass_gcs"></label>
+    <label>Skin<textarea id="ass_skin"></textarea></label>
+    <label>Head<textarea id="ass_head"></textarea></label>
+    <label>Eyes<textarea id="ass_eyes"></textarea></label>
+    <label>Ears/Nose<textarea id="ass_ears"></textarea></label>
+    <label>Throat<textarea id="ass_throat"></textarea></label>
+    <label>Airway<textarea id="ass_airway"></textarea></label>
+    <label>Chest<textarea id="ass_chest"></textarea></label>
+    <label>Lungs<textarea id="ass_lungs"></textarea></label>
+    <label>Abdomen<textarea id="ass_abdomen"></textarea></label>
+    <label>Back<textarea id="ass_back"></textarea></label>
+    <label>Extremities<textarea id="ass_ext"></textarea></label>
+    <label>Neuro<textarea id="ass_neuro"></textarea></label>
+    <label>BP<input id="ass_bp"></label>
+    <label>HR<input id="ass_hr"></label>
+    <label>SpO₂<input id="ass_o2"></label>
+    <label>ETCO₂<input id="ass_etco2"></label>
+    <label>BGL<input id="ass_bgl"></label>
+    <label>Temp<input id="ass_temp"></label>
+    <label>ECG<textarea id="ass_ecg"></textarea></label>
+    <label>Additional Findings<textarea id="ass_add"></textarea></label>
+  </div>
+
+  <div class="section"><h3>R – Treatment</h3>
+    <label>Procedures<textarea id="treat_proc"></textarea></label>
+    <label>IV<textarea id="treat_iv"></textarea></label>
+    <label>Medications<textarea id="treat_meds"></textarea></label>
+    <label>Oxygen<textarea id="treat_o2"></textarea></label>
+    <label>Condition<select id="treat_response"><option>Improved</option><option>Unchanged</option><option>Worse</option></select></label>
+    <label>Post-Treatment Vitals<textarea id="treat_vitals"></textarea></label>
+  </div>
+
+  <div class="section"><h3>T – Transport</h3>
+    <label>Transport Unit<input id="trans_unit"></label>
+    <label>Destination<input id="trans_dest"></label>
+    <label>FD Assist<textarea id="trans_fd"></textarea></label>
+    <label>Patient Secured<select id="trans_stretch"><option>Yes</option><option>No</option></select></label>
+    <label>Patient Position<textarea id="trans_pos"></textarea></label>
+    <label>Other Times Info<textarea id="all_times_approx"></textarea></label>
+  </div>
+
+  <button onclick="generate()">Generate DCHART</button>
+  <div id="output"></div>
+
+  <script>
+    function val(id, def = "") {
+      const v = document.getElementById(id)?.value.trim();
+      return v ? v : def;
+    }
+
+    function phrase(label, value) {
+      return value ? `${label} ${value}.` : '';
+    }
+
+    function generate() {
+      const dispatch = [
+        phrase('', `${val('unit')} responded to ${val('callType')} involving ${val('ageGender')}.`),
+        phrase('Upon arrival,', val('arrivalInfo'))
+      ].filter(Boolean).join(' ');
+
+      const chief = phrase("Chief complaint:", val('complaint', 'No Voiced Complaints'));
+
+      const trauma = val('recent_trauma') || "PT denies recent trauma.";
+      const travel = val('recent_travel') || "PT denies recent travel.";
+      const opqrst = [
+        phrase('Onset', val('opqrst_onset')),
+        phrase('Provocation', val('opqrst_prov')),
+        phrase('Quality', val('opqrst_qual')),
+        phrase('Radiation', val('opqrst_rad')),
+        phrase('Severity', val('opqrst_sev')),
+        phrase('Time', val('opqrst_time'))
+      ].filter(Boolean).join(', ');
+
+      const history = [
+        phrase('Patient reports', val('s_signs')),
+        phrase('Allergies:', val('s_allergies', 'NKDA')),
+        phrase('Medications:', val('s_meds', 'none reported')),
+        phrase('Medical history:', val('s_history')),
+        phrase('Last oral intake:', val('s_intake')),
+        phrase('Events:', val('s_events')),
+        opqrst ? `OPQRST: ${opqrst}.` : '',
+        trauma,
+        travel,
+        phrase('Witness/Caregiver:', val('other_history'))
+      ].filter(Boolean).join(' ');
+
+      const assessment = [
+        phrase('AAO:', val('ass_aao')),
+        phrase('GCS:', val('ass_gcs')),
+        phrase('Skin:', val('ass_skin')),
+        phrase('Head:', val('ass_head')),
+        phrase('Eyes:', val('ass_eyes')),
+        phrase('Ears/Nose:', val('ass_ears')),
+        phrase('Throat:', val('ass_throat')),
+        phrase('Airway:', val('ass_airway')),
+        phrase('Chest:', val('ass_chest')),
+        phrase('Lungs:', val('ass_lungs')),
+        phrase('Abdomen:', val('ass_abdomen')),
+        phrase('Back:', val('ass_back')),
+        phrase('Extremities:', val('ass_ext')),
+        phrase('Neuro:', val('ass_neuro')),
+        phrase('Vitals:', `BP ${val('ass_bp')} HR ${val('ass_hr')} SpO₂ ${val('ass_o2')} ETCO₂ ${val('ass_etco2')} BGL ${val('ass_bgl')} Temp ${val('ass_temp')}`),
+        phrase('ECG:', val('ass_ecg')),
+        phrase('Additional findings:', val('ass_add'))
+      ].filter(Boolean).join(' ');
+
+      const treatment = [
+        phrase('Procedures:', val('treat_proc')),
+        phrase('IV:', val('treat_iv')),
+        phrase('Medications:', val('treat_meds')),
+        phrase('Oxygen:', val('treat_o2')),
+        phrase('Patient condition:', val('treat_response')),
+        phrase('Post-treatment vitals:', val('treat_vitals'))
+      ].filter(Boolean).join(' ');
+
+      const transport = [
+        phrase('', `${val('trans_unit')} transported the patient to ${val('trans_dest')}`),
+        phrase('FD Assist:', val('trans_fd')),
+        phrase('Secured:', val('trans_stretch')),
+        phrase('Position:', val('trans_pos')),
+        phrase('', val('all_times_approx'))
+      ].filter(Boolean).join(' ');
+
+      const output = `D: ${dispatch}\n\nC: ${chief}\n\nH: ${history}\n\nA: ${assessment}\n\nR: ${treatment}\n\nT: ${transport}`;
+      document.getElementById('output').innerText = output;
+    }
+  </script>
+
+</body>
+</html>
